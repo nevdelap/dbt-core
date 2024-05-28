@@ -123,7 +123,7 @@ class TestRuntimeConfig(BaseConfigTest):
 
     def test_unsupported_version_extra_config(self):
         self.default_project_data["some-extra-field-not-allowed"] = True
-        raised = self.from_parts(dbt.exceptions.DbtProjectError)
+        raised = self.from_parts(dbt.exceptions.ProjectContractError)
         self.assertIn("Additional properties are not allowed", str(raised.exception))
 
     def test_archive_not_allowed(self):
@@ -141,7 +141,7 @@ class TestRuntimeConfig(BaseConfigTest):
                 ],
             }
         ]
-        with self.assertRaises(dbt.exceptions.DbtProjectError):
+        with self.assertRaises(dbt.exceptions.ProjectContractError):
             self.get_project()
 
     def test__warn_for_unused_resource_config_paths_empty(self):
