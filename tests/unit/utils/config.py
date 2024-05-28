@@ -37,7 +37,7 @@ def profile() -> Profile:
         },
     }
     return Profile.from_raw_profile_info(
-        raw_profile=profile_yaml, profile_name="unit_tests", renderer=ProfileRenderer({})
+        raw_profile=profile_yaml, profile_name="test_profile", renderer=ProfileRenderer({})
     )
 
 

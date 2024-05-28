@@ -1,6 +1,9 @@
 import os
+import tempfile
 from argparse import Namespace
 from unittest import mock
+
+import pytest
 
 import dbt.config
 import dbt.exceptions
@@ -19,11 +22,41 @@ from tests.unit.config import (
 
 
 class TestRuntimeConfig:
+    @pytest.fixture
+    def args(self) -> Namespace:
+        return Namespace(
+            profiles_dir=tempfile.mkdtemp(),
+            cli_vars={},
+            version_check=True,
+            project_dir=tempfile.mkdtemp(),
+            target=None,
+            threads=None,
+            profile=None,
+        )
+
     def test_str(self, profile: Profile, project: Project) -> None:
         config = dbt.config.RuntimeConfig.from_parts(project, profile, {})
 
         # to make sure nothing terrible happens
         str(config)
+
+    def test_from_parts(self, args: Namespace, profile: Profile, project: Project):
+        config = dbt.config.RuntimeConfig.from_parts(project, profile, args)
+
+        assert config.cli_vars == {}
+        assert config.to_profile_info() == profile.to_profile_info()
+        # we should have the default quoting set in the full config, but not in
+        # the project
+        # TODO(jeb): Adapters must assert that quoting is populated?
+        expected_project = project.to_project_config()
+        assert expected_project["quoting"] == {}
+
+        expected_project["quoting"] = {
+            "database": True,
+            "identifier": True,
+            "schema": True,
+        }
+        assert config.to_project_config() == expected_project
 
 
 class TestRuntimeConfigOLD(BaseConfigTest):
@@ -51,26 +84,6 @@ class TestRuntimeConfigOLD(BaseConfigTest):
             return result
         else:
             return err
-
-    def test_from_parts(self):
-        project = self.get_project()
-        profile = self.get_profile()
-        config = dbt.config.RuntimeConfig.from_parts(project, profile, self.args)
-
-        self.assertEqual(config.cli_vars, {})
-        self.assertEqual(config.to_profile_info(), profile.to_profile_info())
-        # we should have the default quoting set in the full config, but not in
-        # the project
-        # TODO(jeb): Adapters must assert that quoting is populated?
-        expected_project = project.to_project_config()
-        self.assertEqual(expected_project["quoting"], {})
-
-        expected_project["quoting"] = {
-            "database": True,
-            "identifier": True,
-            "schema": True,
-        }
-        self.assertEqual(config.to_project_config(), expected_project)
 
     def test_supported_version(self):
         self.default_project_data["require-dbt-version"] = ">0.0.0"
