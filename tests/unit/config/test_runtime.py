@@ -5,6 +5,8 @@ from unittest import mock
 import dbt.config
 import dbt.exceptions
 from dbt import tracking
+from dbt.config.profile import Profile
+from dbt.config.project import Project
 from dbt.contracts.project import PackageConfig
 from dbt.flags import set_from_args
 from dbt.tests.util import safe_set_invocation_context
@@ -16,7 +18,15 @@ from tests.unit.config import (
 )
 
 
-class TestRuntimeConfig(BaseConfigTest):
+class TestRuntimeConfig:
+    def test_str(self, profile: Profile, project: Project) -> None:
+        config = dbt.config.RuntimeConfig.from_parts(project, profile, {})
+
+        # to make sure nothing terrible happens
+        str(config)
+
+
+class TestRuntimeConfigOLD(BaseConfigTest):
     def get_project(self):
         return project_from_config_norender(
             self.default_project_data,
@@ -61,14 +71,6 @@ class TestRuntimeConfig(BaseConfigTest):
             "schema": True,
         }
         self.assertEqual(config.to_project_config(), expected_project)
-
-    def test_str(self):
-        project = self.get_project()
-        profile = self.get_profile()
-        config = dbt.config.RuntimeConfig.from_parts(project, profile, {})
-
-        # to make sure nothing terrible happens
-        str(config)
 
     def test_supported_version(self):
         self.default_project_data["require-dbt-version"] = ">0.0.0"
