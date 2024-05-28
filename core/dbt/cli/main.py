@@ -302,6 +302,7 @@ def docs_generate(ctx, **kwargs):
 @click.pass_context
 @global_flags
 @p.browser
+@p.host
 @p.port
 @p.profile
 @p.profiles_dir
