@@ -51,4 +51,5 @@ def test_run_task_preserve_edges():
     ):
         task = RunTask(get_flags(), None, None)
         task.get_graph_queue()
+        # when we get the graph queue, preserve_edges is True
         mock_node_selector.get_graph_queue.assert_called_with(mock_spec, True)
