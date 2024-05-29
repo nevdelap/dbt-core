@@ -4,12 +4,14 @@ from argparse import Namespace
 from unittest import mock
 
 import pytest
+from pytest_mock import MockerFixture
 
 import dbt.config
 import dbt.exceptions
 from dbt import tracking
 from dbt.config.profile import Profile
 from dbt.config.project import Project
+from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.project import PackageConfig
 from dbt.flags import set_from_args
 from dbt.tests.util import safe_set_invocation_context
@@ -57,6 +59,16 @@ class TestRuntimeConfig:
             "schema": True,
         }
         assert config.to_project_config() == expected_project
+
+    def test_get_metadata(self, mocker: MockerFixture, runtime_config: RuntimeConfig) -> None:
+        mock_user = mocker.patch.object(tracking, "active_user")
+        mock_user.id = "cfc9500f-dc7f-4c83-9ea7-2c581c1b38cf"
+        set_from_args(Namespace(SEND_ANONYMOUS_USAGE_STATS=False), None)
+
+        metadata = runtime_config.get_metadata()
+        # ensure user_id and send_anonymous_usage_stats are set correctly
+        assert metadata.user_id == mock_user.id
+        assert not metadata.send_anonymous_usage_stats
 
 
 class TestRuntimeConfigOLD(BaseConfigTest):
@@ -120,20 +132,6 @@ class TestRuntimeConfigOLD(BaseConfigTest):
             )
         finally:
             dbt.flags.WARN_ERROR = False
-
-    @mock.patch.object(tracking, "active_user")
-    def test_get_metadata(self, mock_user):
-        project = self.get_project()
-        profile = self.get_profile()
-        config = dbt.config.RuntimeConfig.from_parts(project, profile, self.args)
-
-        mock_user.id = "cfc9500f-dc7f-4c83-9ea7-2c581c1b38cf"
-        set_from_args(Namespace(SEND_ANONYMOUS_USAGE_STATS=False), None)
-
-        metadata = config.get_metadata()
-        # ensure user_id and send_anonymous_usage_stats are set correctly
-        self.assertEqual(metadata.user_id, mock_user.id)
-        self.assertFalse(metadata.send_anonymous_usage_stats)
 
 
 class TestRuntimeConfigWithConfigs(BaseConfigTest):
