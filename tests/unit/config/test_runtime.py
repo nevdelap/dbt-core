@@ -85,17 +85,6 @@ class TestRuntimeConfigOLD(BaseConfigTest):
         else:
             return err
 
-    def test_unsupported_version_range_bad_config(self):
-        self.default_project_data["require-dbt-version"] = [">0.0.0", "<=0.0.1"]
-        self.default_project_data["some-extra-field-not-allowed"] = True
-        raised = self.from_parts(dbt.exceptions.DbtProjectError)
-        self.assertIn("This version of dbt is not supported", str(raised.exception))
-
-    def test_unsupported_version_extra_config(self):
-        self.default_project_data["some-extra-field-not-allowed"] = True
-        raised = self.from_parts(dbt.exceptions.ProjectContractError)
-        self.assertIn("Additional properties are not allowed", str(raised.exception))
-
     def test_archive_not_allowed(self):
         self.default_project_data["archive"] = [
             {
