@@ -85,56 +85,11 @@ class TestRuntimeConfigOLD(BaseConfigTest):
         else:
             return err
 
-    def test_supported_version(self):
-        self.default_project_data["require-dbt-version"] = ">0.0.0"
-        conf = self.from_parts()
-        self.assertEqual(set(x.to_version_string() for x in conf.dbt_version), {">0.0.0"})
-
-    def test_unsupported_version(self):
-        self.default_project_data["require-dbt-version"] = ">99999.0.0"
-        raised = self.from_parts(dbt.exceptions.DbtProjectError)
-        self.assertIn("This version of dbt is not supported", str(raised.exception))
-
-    def test_unsupported_version_no_check(self):
-        self.default_project_data["require-dbt-version"] = ">99999.0.0"
-        self.args.version_check = False
-        set_from_args(self.args, None)
-        conf = self.from_parts()
-        self.assertEqual(set(x.to_version_string() for x in conf.dbt_version), {">99999.0.0"})
-
-    def test_supported_version_range(self):
-        self.default_project_data["require-dbt-version"] = [">0.0.0", "<=99999.0.0"]
-        conf = self.from_parts()
-        self.assertEqual(
-            set(x.to_version_string() for x in conf.dbt_version), {">0.0.0", "<=99999.0.0"}
-        )
-
-    def test_unsupported_version_range(self):
-        self.default_project_data["require-dbt-version"] = [">0.0.0", "<=0.0.1"]
-        raised = self.from_parts(dbt.exceptions.DbtProjectError)
-        self.assertIn("This version of dbt is not supported", str(raised.exception))
-
     def test_unsupported_version_range_bad_config(self):
         self.default_project_data["require-dbt-version"] = [">0.0.0", "<=0.0.1"]
         self.default_project_data["some-extra-field-not-allowed"] = True
         raised = self.from_parts(dbt.exceptions.DbtProjectError)
         self.assertIn("This version of dbt is not supported", str(raised.exception))
-
-    def test_unsupported_version_range_no_check(self):
-        self.default_project_data["require-dbt-version"] = [">0.0.0", "<=0.0.1"]
-        self.args.version_check = False
-        set_from_args(self.args, None)
-        conf = self.from_parts()
-        self.assertEqual(
-            set(x.to_version_string() for x in conf.dbt_version), {">0.0.0", "<=0.0.1"}
-        )
-
-    def test_impossible_version_range(self):
-        self.default_project_data["require-dbt-version"] = [">99999.0.0", "<=0.0.1"]
-        raised = self.from_parts(dbt.exceptions.DbtProjectError)
-        self.assertIn(
-            "The package version requirement can never be satisfied", str(raised.exception)
-        )
 
     def test_unsupported_version_extra_config(self):
         self.default_project_data["some-extra-field-not-allowed"] = True
