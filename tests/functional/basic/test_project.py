@@ -139,3 +139,31 @@ class TestVersionSpecifierChecksComeBeforeYamlValidation:
         assert result.exception is not None
         assert isinstance(result.exception, DbtProjectError)
         assert "This version of dbt is not supported"
+
+
+class TestArchiveNotAllowed:
+    """At one point in time we supported an 'archive' key in projects, but no longer"""
+
+    def test_archive_not_allowed(self, project):
+        runner = dbtRunner()
+
+        config_update = {
+            "archive": {
+                "source_schema": "a",
+                "target_schema": "b",
+                "tables": [
+                    {
+                        "source_table": "seed",
+                        "target_table": "archive_actual",
+                        "updated_at": "updated_at",
+                        "unique_key": """id || '-' || first_name""",
+                    },
+                ],
+            }
+        }
+        update_config_file(config_update, "dbt_project.yml")
+
+        result = runner.invoke(["parse"])
+        assert result.exception is not None
+        assert isinstance(result.exception, ProjectContractError)
+        assert "Additional properties are not allowed" in str(result.exception)

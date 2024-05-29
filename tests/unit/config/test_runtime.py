@@ -97,24 +97,6 @@ class TestRuntimeConfigOLD(BaseConfigTest):
         else:
             return err
 
-    def test_archive_not_allowed(self):
-        self.default_project_data["archive"] = [
-            {
-                "source_schema": "a",
-                "target_schema": "b",
-                "tables": [
-                    {
-                        "source_table": "seed",
-                        "target_table": "archive_actual",
-                        "updated_at": "updated_at",
-                        "unique_key": """id || '-' || first_name""",
-                    },
-                ],
-            }
-        ]
-        with self.assertRaises(dbt.exceptions.ProjectContractError):
-            self.get_project()
-
     def test__warn_for_unused_resource_config_paths_empty(self):
         project = self.from_parts()
         dbt.flags.WARN_ERROR = True
