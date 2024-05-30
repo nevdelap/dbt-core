@@ -1,6 +1,7 @@
 import os
 import tempfile
 from argparse import Namespace
+from typing import Any, Dict
 from unittest import mock
 
 import pytest
@@ -13,14 +14,12 @@ from dbt.config.profile import Profile
 from dbt.config.project import Project
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.project import PackageConfig
+from dbt.events.types import UnusedResourceConfigPath
 from dbt.flags import set_from_args
 from dbt.tests.util import safe_set_invocation_context
-from tests.unit.config import (
-    BaseConfigTest,
-    empty_profile_renderer,
-    project_from_config_norender,
-    temp_cd,
-)
+from dbt_common.events.event_manager_client import add_callback_to_manager
+from tests.unit.config import BaseConfigTest, temp_cd
+from tests.utils import EventCatcher
 
 
 class TestRuntimeConfig:
@@ -70,114 +69,50 @@ class TestRuntimeConfig:
         assert metadata.user_id == mock_user.id
         assert not metadata.send_anonymous_usage_stats
 
+    @pytest.fixture
+    def used_fqns(self) -> Dict[str, Any]:
+        return {"models": frozenset((("my_test_project", "foo", "bar"),))}
 
-class TestRuntimeConfigOLD(BaseConfigTest):
-    def get_project(self):
-        return project_from_config_norender(
-            self.default_project_data,
-            project_root=self.project_dir,
-            verify_version=self.args.version_check,
-        )
+    def test_warn_for_unused_resource_config_paths(
+        self,
+        runtime_config: RuntimeConfig,
+        used_fqns: Dict[str, Any],
+    ):
+        catcher = EventCatcher(event_to_catch=UnusedResourceConfigPath)
+        add_callback_to_manager(catcher.catch)
 
-    def get_profile(self):
-        renderer = empty_profile_renderer()
-        return dbt.config.Profile.from_raw_profiles(
-            self.default_profile_data, self.default_project_data["profile"], renderer
-        )
-
-    def from_parts(self, exc=None):
-        with self.assertRaisesOrReturns(exc) as err:
-            project = self.get_project()
-            profile = self.get_profile()
-
-            result = dbt.config.RuntimeConfig.from_parts(project, profile, self.args)
-
-        if exc is None:
-            return result
-        else:
-            return err
-
-    def test__warn_for_unused_resource_config_paths_empty(self):
-        project = self.from_parts()
-        dbt.flags.WARN_ERROR = True
-        try:
-            project.warn_for_unused_resource_config_paths(
-                {
-                    "models": frozenset(
-                        (
-                            ("my_test_project", "foo", "bar"),
-                            ("my_test_project", "foo", "baz"),
-                        )
-                    )
-                },
-                [],
-            )
-        finally:
-            dbt.flags.WARN_ERROR = False
-
-
-class TestRuntimeConfigWithConfigs(BaseConfigTest):
-    def setUp(self):
-        self.profiles_dir = "/invalid-profiles-path"
-        self.project_dir = "/invalid-root-path"
-        super().setUp()
-        self.default_project_data["project-root"] = self.project_dir
-        self.default_project_data["models"] = {
-            "enabled": True,
+        runtime_config.models = {
             "my_test_project": {
                 "foo": {
                     "materialized": "view",
                     "bar": {
                         "materialized": "table",
                     },
-                },
-                "baz": {
-                    "materialized": "table",
-                },
-            },
-        }
-        self.used = {
-            "models": frozenset(
-                (
-                    ("my_test_project", "foo", "bar"),
-                    ("my_test_project", "foo", "baz"),
-                )
-            )
+                    "baz": {
+                        "materialized": "table",
+                    },
+                }
+            }
         }
 
-    def get_project(self):
-        return project_from_config_norender(
-            self.default_project_data, project_root=self.project_dir, verify_version=True
-        )
+        runtime_config.warn_for_unused_resource_config_paths(used_fqns, [])
+        len(catcher.caught_events) == 1
+        expected_msg = "models.my_test_project.foo.baz"
+        assert expected_msg in str(catcher.caught_events[0].data)
 
-    def get_profile(self):
-        renderer = empty_profile_renderer()
-        return dbt.config.Profile.from_raw_profiles(
-            self.default_profile_data, self.default_project_data["profile"], renderer
-        )
+    def test_warn_for_unused_resource_config_paths_empty_models(
+        self,
+        runtime_config: RuntimeConfig,
+        used_fqns: Dict[str, Any],
+    ) -> None:
+        catcher = EventCatcher(event_to_catch=UnusedResourceConfigPath)
+        add_callback_to_manager(catcher.catch)
 
-    def from_parts(self, exc=None):
-        with self.assertRaisesOrReturns(exc) as err:
-            project = self.get_project()
-            profile = self.get_profile()
+        # models should already be empty, but lets ensure it
+        runtime_config.models = {}
 
-            result = dbt.config.RuntimeConfig.from_parts(project, profile, self.args)
-
-        if exc is None:
-            return result
-        else:
-            return err
-
-    def test__warn_for_unused_resource_config_paths(self):
-        project = self.from_parts()
-        with mock.patch("dbt.config.runtime.warn_or_error") as warn_or_error_patch:
-            project.warn_for_unused_resource_config_paths(self.used, [])
-            warn_or_error_patch.assert_called_once()
-            event = warn_or_error_patch.call_args[0][0]
-            assert type(event).__name__ == "UnusedResourceConfigPath"
-            msg = event.message()
-            expected_msg = "- models.my_test_project.baz"
-            assert expected_msg in msg
+        runtime_config.warn_for_unused_resource_config_paths(used_fqns, ())
+        assert len(catcher.caught_events) == 0
 
 
 class TestRuntimeConfigFiles(BaseConfigTest):
