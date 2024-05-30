@@ -12,8 +12,8 @@ from dbt.events.types import (
     SQLCompiledPath,
     StatsLine,
 )
-from dbt.events.base_types import EventLevel
 from dbt.node_types import NodeType
+from dbt_common.events.base_types import EventLevel
 from dbt_common.events.format import pluralize
 from dbt_common.events.functions import fire_event
 from dbt_common.events.types import Formatting
