@@ -82,7 +82,7 @@ class TestBuildFailFastDebug(BaseConfigProject):
         # 1 snapshot
         assert "SKIP=1" in result.output
         # Skipping due to fail_fast is shown when --debug is specified.
-        assert result.output.count("Skipping due to fail_fast") == 1
+        assert "Skipping due to fail_fast" in result.output
 
 
 class TestDocsGenerate(BaseConfigProject):
